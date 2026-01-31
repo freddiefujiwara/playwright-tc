@@ -139,4 +139,3 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .gemini/
 debug_*
-package-lock.json
