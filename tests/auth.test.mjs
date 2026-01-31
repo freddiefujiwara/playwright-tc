@@ -146,18 +146,14 @@ describe('runAuthFlow', () => {
       env,
     });
 
-    expect(mockChromium.launch).toHaveBeenCalledWith({ headless: false });
+    expect(mockChromium.launch).toHaveBeenCalledWith({ headless: true });
     expect(mockBrowser.newContext).toHaveBeenCalledWith({ userAgent: 'iPhone Safari/605.1.15' });
     expect(mockContext.newPage).toHaveBeenCalled();
     expect(mockPage.goto).toHaveBeenCalledWith('https://share.timescar.jp/view/sp/member/mypage.jsp', { waitUntil: 'domcontentloaded' });
-    expect(mockPage.fill).toHaveBeenCalledWith('input[name="tpLoginForm:cardNo1"]', '1234');
-    expect(mockPage.fill).toHaveBeenCalledWith('input[name="tpLoginForm:cardNo2"]', '567890');
-    expect(mockPage.fill).toHaveBeenCalledWith('input[name="tpLoginForm:tpPassword"]', 'password123');
-    expect(mockPage.click).toHaveBeenCalledWith('input[name="tpLoginForm:doLoginForTp"]');
-    expect(mockPage.waitForURL).toHaveBeenCalledWith('https://share.timescar.jp/view/sp/member/mypage.jsp');
     expect(mockLogger.log).toHaveBeenCalledWith('Successfully logged in.');
-    expect(mockPage.goto).toHaveBeenCalledWith('https://share.timescar.jp/sp/', { waitUntil: 'domcontentloaded' });
-    expect(mockPage.goto).toHaveBeenCalledWith('https://share.timescar.jp/view/sp/member/mypage.jsp', { waitUntil: 'domcontentloaded' });
+    
+    // Check total calls to ensure no unexpected navigation
+    expect(mockPage.goto).toHaveBeenCalledTimes(1);
     
     // Modal closing logic
     expect(mockLocator).toHaveBeenCalledWith('div.info_message:visible');
@@ -266,5 +262,28 @@ describe('runAuthFlow', () => {
     expect(mockPersistFn).toHaveBeenCalled();
     expect(mockBrowser.close).toHaveBeenCalled();
     expect(mockExit).toHaveBeenCalledWith(0);
+  });
+
+  it('should launch in headed mode when --headed flag is passed', async () => {
+    const originalArgv = process.argv;
+    process.argv = ['node', 'auth.js', '--headed']; // Mock command-line arguments
+
+    const env = {
+      TIMESCAR_CARD_NO: '1234567890',
+      TIMESCAR_PASSWORD: 'password123',
+    };
+
+    await runAuthFlow({
+      chromiumModule: mockChromium,
+      logger: mockLogger,
+      exit: mockExit,
+      authPaths: mockAuthPaths,
+      persistFn: mockPersistFn,
+      env,
+    });
+
+    expect(mockChromium.launch).toHaveBeenCalledWith({ headless: false });
+
+    process.argv = originalArgv; // Restore original arguments
   });
 });

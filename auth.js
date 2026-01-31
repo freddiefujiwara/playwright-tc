@@ -88,7 +88,8 @@ export const runAuthFlow = async ({
     throw new Error('TIMESCAR_PASSWORD environment variable is missing.');
   }
 
-  const browser = await chromiumModule.launch({ headless: false });
+  const headlessMode = !process.argv.includes('--headed');
+  const browser = await chromiumModule.launch({ headless: headlessMode });
   const context = await browser.newContext({ userAgent: 'iPhone Safari/605.1.15' });
   const page = await context.newPage();
 
@@ -97,8 +98,6 @@ export const runAuthFlow = async ({
     logger.log('Successfully logged in.');
 
     // Navigate to establish the session correctly and handle modals
-    await page.goto('https://share.timescar.jp/sp/', { waitUntil: 'domcontentloaded' });
-    await page.goto('https://share.timescar.jp/view/sp/member/mypage.jsp', { waitUntil: 'domcontentloaded' });
 
     await closeAllModals(page, logger);
 
