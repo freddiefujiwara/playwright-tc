@@ -1,20 +1,6 @@
 import { chromium } from "playwright";
 import fs from "fs";
-import path from "path";
-import os from "os";
-
-export const getAuthPaths = ({
-  homedir = os.homedir,
-  join = path.join,
-  env = process.env,
-} = {}) => {
-  const defaultAuthDir = join(homedir(), ".config", "playwright-tc");
-  const authDir = env.PLAYWRIGHT_TC_AUTH_DIR ?? defaultAuthDir;
-  return {
-    authDir,
-    authPath: env.PLAYWRIGHT_TC_AUTH_PATH ?? join(authDir, "auth.json"),
-  };
-};
+import { closeAllModals, getAuthPaths } from "./lib/common.js";
 
 export const persistAuthState = async ({
   context,
@@ -47,26 +33,13 @@ const performLogin = async (page, { cardNo, password }) => {
   await page.waitForURL('https://share.timescar.jp/view/sp/member/mypage.jsp');
 };
 
-const closeAllModals = async (page, logger = console) => {
-  logger.log('Checking for modals...');
-  for (let i = 0; i < 10; i++) { // Limit attempts to avoid infinite loop
-    try {
-      // Find the first visible modal container. Wait up to 3 seconds.
-      const modal = page.locator('div.info_message:visible').first();
-      await modal.waitFor({ timeout: 3000 });
-
-      // Find the primary action button within that modal and click it.
-      const closeButton = modal.locator('a[data-role="button"]');
-      await closeButton.click();
-
-      logger.log('Modal closed.');
-      await page.waitForTimeout(1000); // Wait for transition
-    } catch (error) {
-      // If waitFor times out, it means no visible modal was found.
-      logger.log('No more modals found.');
-      break;
-    }
+const requireEnvValue = ({ env, key, logger, errorMessage, throwMessage }) => {
+  const value = env[key];
+  if (!value) {
+    logger.error(errorMessage);
+    throw new Error(throwMessage);
   }
+  return value;
 };
 
 export const runAuthFlow = async ({
@@ -75,20 +48,25 @@ export const runAuthFlow = async ({
   exit = process.exit,
   authPaths = getAuthPaths(),
   persistFn = persistAuthState,
+  argv = process.argv,
   env = process.env,
 } = {}) => {
-  const cardNo = env.TIMESCAR_CARD_NO;
-  if (!cardNo) {
-    logger.error('Please set TIMESCAR_CARD_NO environment variable.');
-    throw new Error('TIMESCAR_CARD_NO environment variable is missing.');
-  }
-  const password = env.TIMESCAR_PASSWORD;
-  if (!password) {
-    logger.error('Please set TIMESCAR_PASSWORD environment variable.');
-    throw new Error('TIMESCAR_PASSWORD environment variable is missing.');
-  }
+  const cardNo = requireEnvValue({
+    env,
+    key: 'TIMESCAR_CARD_NO',
+    logger,
+    errorMessage: 'Please set TIMESCAR_CARD_NO environment variable.',
+    throwMessage: 'TIMESCAR_CARD_NO environment variable is missing.',
+  });
+  const password = requireEnvValue({
+    env,
+    key: 'TIMESCAR_PASSWORD',
+    logger,
+    errorMessage: 'Please set TIMESCAR_PASSWORD environment variable.',
+    throwMessage: 'TIMESCAR_PASSWORD environment variable is missing.',
+  });
 
-  const headlessMode = !process.argv.includes('--headed');
+  const headlessMode = !argv.includes('--headed');
   const browser = await chromiumModule.launch({ headless: headlessMode });
   const context = await browser.newContext({ userAgent: 'iPhone Safari/605.1.15' });
   const page = await context.newPage();
@@ -98,7 +76,6 @@ export const runAuthFlow = async ({
     logger.log('Successfully logged in.');
 
     // Navigate to establish the session correctly and handle modals
-
     await closeAllModals(page, logger);
 
     await persistFn({
