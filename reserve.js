@@ -220,15 +220,23 @@ export const runReservationFlow = async ({
 
   
 
-          logger.log('Navigated to reservation input screen and "hourEnd" is visible.');
+                    logger.log('Navigated to reservation input screen and "hourEnd" is visible.');
 
   
 
-          await page.screenshot({ path: "debug_after-reservation-input-click.png" });
+          
 
   
 
-          await closeAllModals(page, logger); // Close modals after navigating to the new page
+          
+
+  
+
+          
+
+  
+
+                    await closeAllModals(page, logger); // Close modals after navigating to the new page
 
   
 
@@ -282,16 +290,12 @@ export const runReservationFlow = async ({
     await closeAllModals(page, logger); // Close any modals after form submission
 
     logger.log('Navigated to reservation confirmation screen.');
-    await page.screenshot({ path: "debug_after-input-confirm.png" });
     await closeAllModals(page, logger); // Close any modals after navigating to the confirmation page
 
     // Click "予約確定" button
     logger.log('Waiting for "予約確定" button to be visible...');
     const confirmButtonSelector = '#firstSubmitButton';
     await page.waitForSelector(confirmButtonSelector, { state: 'visible', timeout: 10000 });
-
-    logger.log('Taking screenshot before clicking "予約確定" button...');
-    await page.screenshot({ path: "debug_before-confirm-click.png" });
 
     await page.click(confirmButtonSelector);
     logger.log('Clicked "予約確定".');
