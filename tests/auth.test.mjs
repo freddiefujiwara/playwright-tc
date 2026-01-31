@@ -6,16 +6,9 @@ vi.mock('fs', () => ({
   existsSync: vi.fn(() => false), // Default to not existing for initial tests
 }));
 
-vi.mock('path', () => ({
-  join: vi.fn((...args) => args.join('/')),
-}));
-
-vi.mock('os', () => ({
-  homedir: vi.fn(() => '/home/test'),
-}));
-
-// Now import the module under test
-import { getAuthPaths, persistAuthState, runAuthFlow } from '../auth.js';
+// Now import the modules under test
+import { persistAuthState, runAuthFlow } from '../auth.js';
+import { getAuthPaths } from '../lib/common.js';
 
 describe('getAuthPaths', () => {
   it('should return default auth paths', () => {
@@ -161,7 +154,7 @@ describe('runAuthFlow', () => {
     expect(mockWaitFor).toHaveBeenCalledWith({ timeout: 3000 });
     expect(mockLocatorInner).toHaveBeenCalledWith('a[data-role="button"]');
     expect(mockClick).toHaveBeenCalled();
-    expect(mockLogger.log).toHaveBeenCalledWith('Modal closed.');
+    expect(mockLogger.error).toHaveBeenCalledWith('Modal closed.');
     expect(mockPage.waitForTimeout).toHaveBeenCalledWith(1000);
 
     expect(mockPersistFn).toHaveBeenCalledWith({
@@ -224,7 +217,7 @@ describe('runAuthFlow', () => {
       env,
     });
 
-    expect(mockLogger.log).toHaveBeenCalledWith('No more modals found.');
+    expect(mockLogger.error).toHaveBeenCalledWith('No more modals found.');
     expect(mockPersistFn).toHaveBeenCalled(); // Should still try to persist state
     expect(mockBrowser.close).toHaveBeenCalled();
     expect(mockExit).toHaveBeenCalledWith(0);
@@ -256,8 +249,8 @@ describe('runAuthFlow', () => {
       env,
     });
 
-    expect(mockLogger.log).toHaveBeenCalledWith('Modal closed.'); // Called for each modal
-    expect(mockLogger.log).toHaveBeenCalledWith('No more modals found.');
+    expect(mockLogger.error).toHaveBeenCalledWith('Modal closed.'); // Called for each modal
+    expect(mockLogger.error).toHaveBeenCalledWith('No more modals found.');
     expect(mockClick).toHaveBeenCalledTimes(2);
     expect(mockPersistFn).toHaveBeenCalled();
     expect(mockBrowser.close).toHaveBeenCalled();

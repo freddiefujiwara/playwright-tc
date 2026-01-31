@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { runReservationFlow, getAuthPaths, closeAllModals } from '../reserve.js';
+import { runReservationFlow } from '../reserve.js';
+import { getAuthPaths, closeAllModals } from '../lib/common.js';
 
 // Mock Playwright modules
 const mockClick = vi.fn(() => Promise.resolve());
@@ -10,7 +11,10 @@ const mockPage = {
   click: mockClick,
   waitForLoadState: vi.fn().mockResolvedValue(null),
   waitForSelector: vi.fn().mockResolvedValue(null),
-  evaluate: vi.fn().mockResolvedValue(null),
+  evaluate: vi.fn((fn, selector) => {
+    fn(selector);
+    return Promise.resolve(null);
+  }),
   screenshot: vi.fn().mockResolvedValue(null),
   waitForTimeout: vi.fn().mockResolvedValue(null),
   locator: vi.fn(() => ({
@@ -42,6 +46,24 @@ describe('getAuthPaths', () => {
   });
 });
 
+describe('closeAllModals', () => {
+  it('should stop when no visible modal is found', async () => {
+    const logger = { error: vi.fn() };
+    const modal = {
+      waitFor: vi.fn().mockRejectedValue(new Error('timeout')),
+      locator: vi.fn(() => ({ click: vi.fn() })),
+    };
+    const page = {
+      locator: vi.fn(() => ({ first: vi.fn(() => modal) })),
+      waitForTimeout: vi.fn(),
+    };
+
+    await closeAllModals(page, logger);
+
+    expect(logger.error).toHaveBeenCalledWith('No more modals found.');
+  });
+});
+
 describe('runReservationFlow', () => {
   const mockLogger = { log: vi.fn(), error: vi.fn() };
   const mockExit = vi.fn();
@@ -51,6 +73,7 @@ describe('runReservationFlow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockExistsSync.mockReturnValue(true);
+    global.document = { querySelector: vi.fn() };
   });
 
   const baseEnv = {
@@ -100,6 +123,20 @@ describe('runReservationFlow', () => {
     expect(mockLogger.error).toHaveBeenCalledWith("Please set RESERVE_DATE environment variable (e.g., '2026-01-31').");
     expect(mockExit).toHaveBeenCalledWith(1);
   });
+
+  it('should exit if RESERVE_START is missing', async () => {
+    const { RESERVE_START, ...env } = baseEnv;
+    await runReservationFlow({ logger: mockLogger, exit: mockExit, env, existsSync: mockExistsSync });
+    expect(mockLogger.error).toHaveBeenCalledWith("Please set RESERVE_START environment variable (e.g., '19' or '08').");
+    expect(mockExit).toHaveBeenCalledWith(1);
+  });
+
+  it('should exit if RESERVE_END is missing', async () => {
+    const { RESERVE_END, ...env } = baseEnv;
+    await runReservationFlow({ logger: mockLogger, exit: mockExit, env, existsSync: mockExistsSync });
+    expect(mockLogger.error).toHaveBeenCalledWith("Please set RESERVE_END environment variable (e.g., '21').");
+    expect(mockExit).toHaveBeenCalledWith(1);
+  });
   
   it('should handle errors during playwright operations', async () => {
     const error = new Error('Playwright failed');
@@ -117,4 +154,3 @@ describe('runReservationFlow', () => {
     expect(mockBrowser.close).toHaveBeenCalled();
   });
 });
-
